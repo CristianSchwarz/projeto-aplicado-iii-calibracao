@@ -1,0 +1,412 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Schulz | Automação de Calibração</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <style>
+        body {
+            background-color: #f4f6f9;
+            color: #1f2937;
+        }
+
+        .navbar-brand {
+            font-weight: 600;
+        }
+
+        .card {
+            border: none;
+            border-radius: 12px;
+        }
+
+        .indicador {
+            border-radius: 10px;
+            height: 100%;
+        }
+
+        .tabela-resultados th {
+            white-space: nowrap;
+            vertical-align: middle;
+            background-color: #243447;
+            color: #ffffff;
+        }
+
+        .tabela-resultados td {
+            vertical-align: middle;
+        }
+
+        .status {
+            font-size: 0.78rem;
+            white-space: normal;
+        }
+
+        .secao-titulo {
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .quebra-texto {
+            overflow-wrap: anywhere;
+        }
+
+        .valor-indicador {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .tabela-resultados {
+            font-size: 0.85rem;
+        }
+
+        .tabela-resultados td {
+            min-width: 100px;
+        }
+
+        .tabela-resultados td:first-child,
+        .tabela-resultados th:first-child {
+            min-width: 160px;
+        }
+    </style>
+</head>
+
+<body>
+
+<nav class="navbar navbar-dark bg-primary shadow-sm">
+    <div class="container">
+        <span class="navbar-brand">
+            Schulz | Automação de Calibração
+        </span>
+    </div>
+</nav>
+
+<main class="container py-4 py-md-5">
+
+    <!-- Formulário de importação -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body p-4">
+
+            <h1 class="h4 mb-2">Importar planilha</h1>
+
+            <p class="text-secondary">
+                Envie uma planilha Excel para processar as medições
+                e verificar os resultados metrológicos.
+            </p>
+
+            <form method="POST" enctype="multipart/form-data">
+
+                <label for="arquivo" class="form-label">
+                    Arquivo Excel
+                </label>
+
+                <input
+                    class="form-control mb-3"
+                    type="file"
+                    id="arquivo"
+                    name="arquivo"
+                    accept=".xlsx,.xlsm"
+                    required
+                >
+
+                <button class="btn btn-primary" type="submit">
+                    Importar e processar
+                </button>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- Mensagem de erro -->
+    {% if erro %}
+    <div class="alert alert-danger" role="alert">
+        <strong>Erro:</strong> {{ erro }}
+    </div>
+    {% endif %}
+
+    <!-- Resultado da importação -->
+    {% if arquivo %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body p-4">
+
+            <h2 class="h5 mb-3">Resultado da importação</h2>
+
+            <div class="row g-3 mb-4">
+
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded h-100">
+                        <div class="text-secondary small">
+                            Arquivo
+                        </div>
+                        <div class="fw-semibold quebra-texto">
+                            {{ arquivo }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded h-100">
+                        <div class="text-secondary small">
+                            Aba selecionada
+                        </div>
+                        <div class="fw-semibold">
+                            {{ aba_selecionada }}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            {% if tipo_processamento %}
+            <p class="text-secondary small">
+                <strong>Tipo de processamento:</strong>
+                {{ tipo_processamento }}
+            </p>
+            {% endif %}
+
+            <p class="mb-4">
+                <strong>Registros encontrados:</strong>
+                {{ total_linhas }}
+            </p>
+
+            <!-- Parecer geral -->
+            {% if parecer %}
+            <div
+                class="alert
+                {% if parecer == 'APROVADO' %}
+                    alert-success
+                {% elif parecer == 'REPROVADO' %}
+                    alert-danger
+                {% else %}
+                    alert-warning
+                {% endif %}"
+                role="status"
+            >
+
+                <h3 class="h6 mb-1">Parecer geral da análise</h3>
+
+                <div class="fs-5 fw-bold">
+                    {{ parecer }}
+                </div>
+
+                <p class="mb-0 mt-2">
+                    {% if parecer == 'APROVADO' %}
+                        Todos os pontos processados passaram
+                        pelo critério de tolerância configurado.
+                    {% elif parecer == 'REPROVADO' %}
+                        Pelo menos um ponto válido não passou
+                        pelo critério de tolerância configurado.
+                    {% else %}
+                        Existem registros inválidos ou incompletos
+                        que precisam ser analisados.
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
+
+            <!-- Resumo dos resultados -->
+            {% if resumo %}
+            <h3 class="h6 secao-titulo">Resumo dos resultados</h3>
+
+            <div class="row g-3 mb-4">
+
+                <div class="col-6 col-lg-3">
+                    <div class="card indicador border border-secondary-subtle">
+                        <div class="card-body">
+                            <p class="text-secondary small mb-1">
+                                Total de pontos
+                            </p>
+                            <div class="valor-indicador">
+                                {{ resumo.total }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div class="card indicador border border-success-subtle">
+                        <div class="card-body">
+                            <p class="text-secondary small mb-1">
+                                Dentro da tolerância
+                            </p>
+                            <div class="valor-indicador text-success">
+                                {{ resumo.dentro }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div class="card indicador border border-danger-subtle">
+                        <div class="card-body">
+                            <p class="text-secondary small mb-1">
+                                Fora da tolerância
+                            </p>
+                            <div class="valor-indicador text-danger">
+                                {{ resumo.fora }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div class="card indicador border border-warning-subtle">
+                        <div class="card-body">
+                            <p class="text-secondary small mb-1">
+                                Dados inválidos
+                            </p>
+                            <div class="valor-indicador text-warning-emphasis">
+                                {{ resumo.invalidos }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            {% endif %}
+
+            <!-- Colunas identificadas -->
+            <h3 class="h6 secao-titulo">Colunas identificadas</h3>
+
+            <div class="d-flex flex-wrap gap-2 mb-4">
+                {% for coluna in colunas %}
+                <span class="badge text-bg-secondary">
+                    {{ coluna }}
+                </span>
+                {% endfor %}
+            </div>
+
+            <!-- Geração do PDF -->
+            {% if job_id and resumo %}
+            <div class="card border border-primary-subtle mb-4">
+                <div class="card-body p-3 p-md-4">
+
+                    <h3 class="h6">Gerar relatório em PDF</h3>
+
+                    <p class="text-secondary mb-3">
+                        Gere um documento com todos os pontos processados,
+                        os cálculos, as classificações e o parecer geral.
+                    </p>
+
+                    <form
+                        method="POST"
+                        action="{{ url_for('gerar_certificado') }}"
+                    >
+                        <input
+                            type="hidden"
+                            name="job_id"
+                            value="{{ job_id }}"
+                        >
+
+                        <button type="submit" class="btn btn-primary">
+                            <span class="me-1">&#128196;</span>
+                            Gerar certificado PDF
+                        </button>
+                    </form>
+
+                    <p class="text-secondary small mt-3 mb-0">
+                        Documento demonstrativo do MVP. Não substitui
+                        um certificado metrológico oficial.
+                    </p>
+
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Resultados -->
+            <h3 class="h6 secao-titulo">
+                Resultados da análise metrológica
+            </h3>
+
+            <p class="text-secondary small">
+                A tabela apresenta até 20 registros. O resumo e o PDF
+                consideram todos os registros processados.
+            </p>
+
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-bordered tabela-resultados">
+
+                    <thead>
+                        <tr>
+                            {% for coluna in colunas %}
+                            <th>{{ coluna }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for linha in linhas %}
+                        <tr>
+                            {% for valor in linha %}
+                            <td>
+
+                                {% if valor is none %}
+                                    —
+
+                                {% elif colunas[loop.index0] == 'Classificação' %}
+
+                                    {% if valor == 'DENTRO_DA_TOLERANCIA' %}
+                                        <span class="badge text-bg-success status">
+                                            {{ valor }}
+                                        </span>
+                                    {% elif valor == 'FORA_DA_TOLERANCIA' %}
+                                        <span class="badge text-bg-danger status">
+                                            {{ valor }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge text-bg-warning status">
+                                            {{ valor }}
+                                        </span>
+                                    {% endif %}
+
+                                {% elif valor is number %}
+                                    {{ "%.7f"|format(valor) }}
+
+                                {% else %}
+                                    {{ valor }}
+                                {% endif %}
+
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+
+                </table>
+            </div>
+
+            <!-- Nota sobre a regra de cálculo -->
+            <div class="alert alert-info small mb-0">
+                <strong>Nota técnica:</strong>
+                quando a aba Importação é utilizada, o sistema calcula
+                a média de MEAS 1 e MEAS 2, o erro sistemático e o erro
+                absoluto. Nesta versão, o LEA é provisoriamente definido
+                como o maior valor absoluto entre +TOL e -TOL. Essa regra
+                precisa ser confirmada com o critério oficial da AV3 antes
+                de considerar o parecer metrológico definitivo.
+                <br><br>
+                Na aba Report, o sistema trabalha com valores consolidados
+                fornecidos pela planilha.
+            </div>
+
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Rodapé -->
+    <footer class="text-center text-secondary small py-3">
+        Projeto Aplicado III — Automação da Emissão de Certificados
+        <br>
+        Empresa parceira: Schulz S.A.
+    </footer>
+
+</main>
+
+</body>
+</html>
